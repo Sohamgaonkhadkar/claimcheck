@@ -13,9 +13,6 @@
 
 ---
 
-<img src="web/public/images/claimcheck/pexels-mikhail-nilov-7731326.jpg" alt="Reviewing claims" width="800" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
-
-</div>
 
 ## 1. The Problem: The Quiet Majority of Lost Money
 
@@ -44,10 +41,6 @@ graph TD
     D --> E[Deterministic Reconstruction]
     E --> F[Findings + Uncertainty + Next Questions]
 ```
-
-<div align="center">
-<img src="web/public/images/claimcheck/pexels-mikhail-nilov-7731331.jpg" alt="Verification Process" width="800" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
-</div>
 
 ---
 
@@ -86,44 +79,54 @@ CLAIMCHECK yields one of three core interpretation states for any deduction:
 
 | State | Meaning |
 |:---|:---|
-| 🟢 **SUPPORTED** | Evidence and deterministic rules mathematically support the deduction. *(Note: This does not mean "legally proven correct"; it means the math aligns structurally with the text).* |
-| 🟡 **POTENTIALLY INCONSISTENT** | The available evidence and deterministic calculation indicate a discrepancy or structural inconsistency that deserves attention. *(Note: This does not automatically mean illegal or fraudulent).* |
-| ⚪ **UNDETERMINED** | The available documents/evidence are insufficient to reach a deterministic conclusion (e.g. unpublished "Reasonable and Customary" rates). |
+| **SUPPORTED** | Evidence and deterministic rules mathematically support the deduction. *(Note: This does not mean "legally proven correct"; it means the math aligns structurally with the text).* |
+| **POTENTIALLY INCONSISTENT** | The available evidence and deterministic calculation indicate a discrepancy or structural inconsistency that deserves attention. *(Note: This does not automatically mean illegal or fraudulent).* |
+| **UNDETERMINED** | The available documents/evidence are insufficient to reach a deterministic conclusion (e.g. unpublished "Reasonable and Customary" rates). |
 
 ---
 
 ## 6. System Architecture
 
-```text
-React + TypeScript (web/)
-        │ same-origin /api requests
-        ▼
-FastAPI API (src/claimcheck/api/)
-        ▼
-Application workflows (src/claimcheck/application/)
-        ├── PostgreSQL metadata + durable document jobs
-        ├── private storage adapter (currently local filesystem)
-        └── claimcheck-worker (separate process)
-                    │
-             PDF extraction + evidence
-                    │
-   explicit roles + append-only human review
-                    │
-             readiness / trust gates
-                    ▼
-          TrustedCaseAdapter
-                    ▼
-          StructuredCase
-                    ▼
-      deterministic pipeline
-  graph → rules/calculation → reconciliation → verdict
-                    ▼
-      persisted AnalysisRun + API result
-```
+```mermaid
+flowchart TD
+    subgraph Frontend
+        A[React + TypeScript]
+    end
 
-<div align="center">
-<img src="web/public/images/claimcheck/pexels-mikhail-nilov-7736036.jpg" alt="Architecture execution" width="800" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
-</div>
+    subgraph API Layer
+        B[FastAPI API]
+    end
+
+    subgraph Application Workflows
+        C[PostgreSQL metadata + jobs]
+        D[Private storage adapter]
+        E[claimcheck-worker]
+    end
+
+    subgraph Pipeline
+        F[PDF extraction + evidence]
+        G[Explicit roles + human review]
+        H{Readiness / trust gates}
+        I[TrustedCaseAdapter]
+        J[StructuredCase]
+        
+        K[Graph → Rules → Reconciliation → Verdict]
+        L[Persisted AnalysisRun + API result]
+    end
+
+    A -- same-origin /api requests --> B
+    B --> C
+    B --> D
+    B --> E
+    
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+    I --> J
+    J --> K
+    K --> L
+```
 
 ---
 
