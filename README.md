@@ -219,36 +219,30 @@ The PostgreSQL database maintains durable product state:
 --------------------------------------------------
 
 ```text
-                    ┌─────────────────────┐
-                    │    React / Vite     │
-                    │    Evidence UI      │
-                    └──────────┬──────────┘
-                               │ HTTPS / API
-                               ▼
-                    ┌─────────────────────┐
-                    │      Nginx          │
-                    │ static + reverse    │
-                    │      proxy          │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │   FastAPI API       │
-                    │ application layer   │
-                    └──────┬──────┬───────┘
-                           │      │
-               ┌───────────┘      └─────────────┐
-               ▼                                ▼
-       ┌────────────────┐              ┌────────────────┐
-       │  PostgreSQL    │              │ Private PDF    │
-       │ product state  │              │ storage        │
-       └────────────────┘              └────────────────┘
-                           ▲
-                           │
-                    ┌──────┴───────┐
-                    │ Python Worker│
-                    │ async jobs   │
-                    └──────────────┘
+React + TypeScript (web/)
+        │ same-origin /api requests
+        ▼
+FastAPI API (src/claimcheck/api/)
+        ▼
+Application workflows (src/claimcheck/application/)
+        ├── PostgreSQL metadata + durable document jobs
+        ├── private storage adapter (currently local filesystem)
+        └── claimcheck-worker (separate process)
+                    │
+             PDF extraction + evidence
+                    │
+   explicit roles + append-only human review
+                    │
+             readiness / trust gates
+                    ▼
+          TrustedCaseAdapter
+                    ▼
+          StructuredCase
+                    ▼
+      deterministic pipeline
+  graph → rules/calculation → reconciliation → verdict
+                    ▼
+      persisted AnalysisRun + API result
 ```
 
 --------------------------------------------------
