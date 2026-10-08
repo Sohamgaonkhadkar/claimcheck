@@ -2,34 +2,52 @@
 
 **An evidence-first health-insurance settlement review service.** CLAIMCHECK organizes policy wording, a policy schedule, a hospital bill, and a settlement/rejection letter into a reviewed, provenance-aware reconstruction—so people can see what is supported, what is uncertain, and what to ask next.
 
-## What CLAIMCHECK Does
+## 1. The Problem: The Quiet Majority of Lost Money
 
-A settlement letter may state what was paid without making it easy to trace **why** deductions were made, **which policy terms** support them, or **what to ask the insurer next**. CLAIMCHECK reconstructs a claim using the documents supplied by the customer, giving clarity and actionable next steps.
+When an Indian policyholder is discharged from the hospital, they receive a settlement or rejection letter. The amount paid is frequently below expectation, but the letter rarely explains the exact arithmetic or policy clause used to justify deductions.
 
-## Key Product Workflow
+The scale of this issue is massive. In FY 2023-24, out of ₹1.17 lakh crore registered health claims, **₹15,100 crore (12.9%) was disallowed** (partially cut) and ₹10,937 crore (9.34%) was repudiated completely. The frequently cited "rejection rate" ignores the largest bucket of lost money: the claim that was approved but silently cut down. 
 
-1. **Upload Documents**: Provide the Policy Wording, Policy Schedule, Hospital Bill, and Settlement Letter PDFs.
-2. **Analysis & Checking**: The backend extracts candidate information from the PDFs.
-3. **Human Review (Trust Gate)**: The customer explicitly reviews the extracted values against the original source documents via a side-by-side Evidence UI.
-4. **Deterministic Reconstruction**: Once fields are verified, a deterministic calculator handles all financial math, limits, and deductions to prevent AI hallucinations.
-5. **Results Generation**: Presents clear findings, outstanding uncertainties, and actionable questions to ask the insurer.
+While free escalation machinery exists (Grievance Officers, Bima Bharosa, the Insurance Ombudsman), it is built for people who already know exactly what to allege and can prove it with figures and clauses. Most policyholders lack the diagnosis needed to challenge a deduction.
 
-## Architecture Overview
+## 2. The Core Idea: Reconstructing the Claim
 
-- **Frontend**: A React SPA that handles uploads, the Evidence UI for human review, and results presentation.
+A large part of an Indian health-insurance deduction is not a black box. It is a stack of named, individually rule-governed arithmetic steps applied to an itemised bill (e.g., non-payable items removal, room-rent sub-limits, proportionate deductions, and co-pays). Each step has a source that can be pointed at.
+
+```text
+Customer PDFs → candidate extraction + evidence → explicit human review
+             → trusted structured inputs → deterministic reconstruction
+             → findings, uncertainty, and possible next questions
+```
+
+Models and parsers propose candidate values. However, **extraction is not truth**. CLAIMCHECK forces explicit human review against the original documents before any analysis begins. After human verification, **deterministic application code** owns the financial arithmetic, reconciliation, and verdict semantics to completely eliminate AI hallucination.
+
+## 3. Product Workflows & Three States
+
+Once the user confirms the evidence, the deterministic calculator evaluates the claim and categorizes each deduction into one of three states:
+
+1. **Supported**: The deduction aligns mathematically and structurally with the uploaded policy terms.
+2. **Potentially Inconsistent**: A discrepancy was found (e.g., a 1% room rent limit was applied as a fixed cap).
+3. **Undetermined**: The wording is ambiguous or relies on unpublished standards like "Reasonable and Customary" charges, and cannot be mathematically verified.
+
+*CLAIMCHECK does not offer legal advice or declare an insurer "wrong in law". It strictly evaluates mathematical and structural consistency against the uploaded documents.*
+
+## 4. Architecture Overview
+
+- **Frontend**: A React SPA built with Vite. Implements the *Evidence UI* where users review and verify extracted values against PDF highlight spans.
 - **Backend API**: A FastAPI service that securely handles uploads, triggers processing, tracks review state, and performs final deterministic financial math.
 - **Worker**: A background process orchestrating PDF parsing, data extraction, and verification pipelines.
 - **Database**: PostgreSQL storing case metadata, document state, evidence provenance, and review logs.
 - **Private Storage**: Local persistent disk storage for user PDFs (never exposed publicly).
 
-## Technology Stack
+## 5. Technology Stack
 
 - **Backend**: Python 3.11, FastAPI, SQLAlchemy, Pydantic, Uvicorn, Celery/Background Tasks
 - **Frontend**: React, TypeScript, Vite, Vanilla CSS
 - **Database**: PostgreSQL 15
 - **Deployment**: Single EC2 Instance, Nginx (Reverse Proxy & Static Files), Systemd Services
 
-## How to Run Locally
+## 6. How to Run Locally
 
 1. **Database**: Start a local PostgreSQL instance (e.g. via Docker Compose or natively).
 2. **Environment**: Copy `.env.example` to `.env` and configure `DATABASE_URL` and `CLAIMCHECK_STORAGE_ROOT`.
@@ -46,7 +64,7 @@ A settlement letter may state what was paid without making it easy to trace **wh
    cd web && npm install && npm run dev
    ```
 
-## Production Deployment Structure
+## 7. Production Deployment Structure
 
 This project is deployed to a single AWS EC2 instance (Amazon Linux 2023) for competition evaluation:
 - **Nginx** handles public traffic on ports 80/443, serving the built Vite static assets and reverse-proxying `/api` to FastAPI.
@@ -55,20 +73,16 @@ This project is deployed to a single AWS EC2 instance (Amazon Linux 2023) for co
 - **PostgreSQL** runs natively, bound only to `localhost`.
 - **EBS Volume** stores persistent database data and private PDF storage `/var/lib/claimcheck/private-storage`.
 
-## Important Limitations / Disclaimer
-
-CLAIMCHECK is designed for transparency and is not legal or financial advice. The models propose candidate values, but all final financial math and deductions are deterministic and rely on human verification through the Evidence UI. Only 4 specific document types are supported for extraction and review.
-
-## Repository Structure
+## 8. Repository Structure
 
 ```
 claimcheck/
 ├── src/claimcheck/          # Backend Python source code
 │   ├── api/                 # FastAPI routes and controllers
 │   ├── worker/              # Background processing and extraction
-│   ├── calculator/          # Deterministic financial arithmetic
+│   ├── calc/                # Deterministic financial arithmetic
 │   ├── models/              # Database schemas
-│   └── pipeline/            # Analysis and provenance tracking
+│   └── pipeline.py          # Analysis and provenance tracking
 ├── web/                     # Frontend React SPA
 │   ├── src/                 # UI components and layouts
 │   └── public/              # Static assets and images
