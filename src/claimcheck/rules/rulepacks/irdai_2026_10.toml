@@ -1,0 +1,663 @@
+# The IRDAI rule pack. Verified against primary instruments on 2026-10-03.
+#
+# HOW TO READ THIS FILE
+# =====================
+# * ``verified_on`` + ``valid_for_days`` implement the **freshness gate**. The 29 May
+#   2024 Master Circular supersedes the instruments listed in its Annexure-6, and that
+#   list has not been read by this project (open item OV-1). Rather than assert a
+#   breach from a circular whose in-force status we cannot yet demonstrate, every rule
+#   carries a verification date and degrades to UNVERIFIED when that date ages out.
+# * Nothing here is encoded from a secondary description. Where the primary text was
+#   not read (e.g. the item lists' full current text, OV-5), the rule is marked
+#   ``status = "unverified"`` and cannot carry a verdict.
+# * ``kind = "contested"`` marks a position on which sources disagree and the primary
+#   text does not settle the question. A contested rule can never assert a breach; it
+#   forces the affected head to be computed under every reading.
+#
+# The quotes are verbatim from the instruments named in ``instrument``. The paragraph
+# numbers were read directly (see docs/rules.md for the verification log).
+
+[rulepack]
+version = "2026.10.1"
+released_on = "2026-10-03"
+notes = """
+Rules verified from the primary instruments on 2026-10-03 by reading the circular
+text. Open items that cap what these rules may assert:
+  OV-1  Annexure-6 of the 29 May 2024 Master Circular (the repeal list) has not been
+        read -> the freshness gate is set to 180 days and every rule in this pack
+        reports its verification date.
+  OV-2  POPI Master Circular (05.09.2024) says non-cashless claims "shall be settled
+        within fifteen days from submission of claim" while the regulations/FAQ
+        frame is 30 days from the last necessary document (45 with investigation).
+        Both bounds are carried, each with its own instrument; neither is asserted
+        alone.
+  OV-3  No primary provision restricting proportionate deduction to the room-rent
+        line was found. The claim remains contested and is encoded as such.
+  OV-5  The current text of the standardised item lists (post-2022 modification) has
+        not been ingested, so item-level rules from the lists are UNVERIFIED.
+"""
+
+# ---------------------------------------------------------------------------
+# Proportionate deduction — IRDAI/HLT/REG/CIR/151/06/2020, verified verbatim
+# ---------------------------------------------------------------------------
+[[rule]]
+rule_id = "PD.AME.DEFINE"
+version = 1
+title = "A proportionate-deduction policy must define 'associated medical expenses'"
+kind = "policy_dependent"
+effect = "REQUIRE_PARAMETER_PRESENT"
+citation = "para 3"
+quote = "Where as part of product design insurers propose proportionate deduction of the 'associated medical expenses' when a policyholder chooses a higher room category than the category that is eligible as per terms and conditions of the policy, insurers shall define 'associated medical expenses' in the terms and conditions of policy contract."
+effective_from = "2020-10-01"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "health products filed on or after 01.10.2020; existing contracts on renewal from 01.04.2021"
+verdict_effect = "If the policy applies a proportionate deduction but defines no associated medical expenses, the deduction has no lawful scope and the affected head is UNDETERMINED."
+evidence_requirement = ["policy_ame_definition_present"]
+human_escalation = false
+tests = ["test_rules.py::test_pd_define_absent_definition_blocks"]
+notes = "Applies to products filed on/after 01.10.2020 and, for existing contracts, on renewal from 01.04.2021 (para 8). The presence of the definition is a fact; its ABSENCE is a finding input, not a licence to import a market convention."
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/REG/CIR/151/06/2020"
+  title = "Modified Guidelines on Product filing in Health Insurance Business - Norms on Proportionate Deductions"
+  issued_on = "2020-06-11"
+  url = "https://irdai.gov.in/document-detail?documentId=394680"
+  retrieved_at = "2026-10-03"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-reg-cir-151-06-2020"
+  clause_id = "irdai-hlt-reg-cir-151-06-2020#3"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  all = [
+    { fact = { fact_id = "policy.era_in_scope", op = "eq", value = true } },
+    { fact = { fact_id = "claim.proportionate_deduction_applied", op = "eq", value = true } },
+  ]
+
+[[rule]]
+rule_id = "PD.AME.EXCLUSIONS"
+version = 1
+title = "Pharmacy, consumables, implants, medical devices and diagnostics cannot be in the definition"
+kind = "standardised"
+effect = "REQUIRE_SCOPE_LIMIT"
+citation = "para 4(a)-(c)"
+quote = "The following expenses are not allowed to be part of the definition of 'associate medical expenses'. a. Cost of pharmacy and consumables; b. Cost of implants and medical devices c. Cost of diagnostics"
+effective_from = "2020-10-01"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "all health products with a room-category-linked proportionate deduction"
+verdict_effect = "A ratio applied to pharmacy, consumables, implants, medical devices or diagnostics is a rule breach on verified facts."
+evidence_requirement = ["settlement_ratio_scope", "bill_head_amounts"]
+human_escalation = false
+tests = ["test_rules.py::test_pd_exclusions_barred_heads"]
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/REG/CIR/151/06/2020"
+  title = "Modified Guidelines on Product filing in Health Insurance Business - Norms on Proportionate Deductions"
+  issued_on = "2020-06-11"
+  url = "https://irdai.gov.in/document-detail?documentId=394680"
+  retrieved_at = "2026-10-03"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-reg-cir-151-06-2020"
+  clause_id = "irdai-hlt-reg-cir-151-06-2020#4"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  fact = { fact_id = "claim.proportionate_deduction_applied", op = "eq", value = true }
+
+  [rule.appliesto.barred_categories]
+  categories = ["pharmacy", "consumables", "implants", "medical_devices", "diagnostics"]
+
+[[rule]]
+rule_id = "PD.SCOPE.NO_EXTRA"
+version = 1
+title = "No recovery beyond the defined associated medical expenses"
+kind = "standardised"
+effect = "REQUIRE_SCOPE_LIMIT"
+citation = "para 5"
+quote = "Insurers shall not recover any expenses towards proportionate deductions other than the defined 'associate medical expenses' while processing claims."
+effective_from = "2020-10-01"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "claim processing"
+verdict_effect = "A proportionate recovery on a head outside the policy's own definition is a rule breach."
+evidence_requirement = ["settlement_ratio_scope", "policy_ame_definition"]
+human_escalation = false
+tests = ["test_rules.py::test_pd_no_extra_breach"]
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/REG/CIR/151/06/2020"
+  title = "Modified Guidelines on Product filing in Health Insurance Business - Norms on Proportionate Deductions"
+  issued_on = "2020-06-11"
+  url = "https://irdai.gov.in/document-detail?documentId=394680"
+  retrieved_at = "2026-10-03"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-reg-cir-151-06-2020"
+  clause_id = "irdai-hlt-reg-cir-151-06-2020#5"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  fact = { fact_id = "claim.proportionate_deduction_applied", op = "eq", value = true }
+
+[[rule]]
+rule_id = "PD.NO_DIFFERENTIAL"
+version = 1
+title = "No proportionate deduction where the hospital does not bill differentially by room category"
+kind = "standardised"
+effect = "REQUIRE_CONDITION"
+citation = "para 6"
+quote = "Insurers shall ensure that proportionate deductions are not applied in respect of the hospitals which do not follow differential billing or for those expenses in respect of which differential billing is not adopted based on the room category. This shall be clearly specified in the policy terms and conditions."
+effective_from = "2020-10-01"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "all hospitals and all heads where billing is not differentiated by room category"
+verdict_effect = "Needs a fact about the hospital's billing practice. Without evidence the result is INDETERMINATE, which makes the affected head UNDETERMINED - never a breach."
+evidence_requirement = ["hospital_differential_billing_status"]
+human_escalation = false
+tests = ["test_rules.py::test_pd_no_differential_indeterminate"]
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/REG/CIR/151/06/2020"
+  title = "Modified Guidelines on Product filing in Health Insurance Business - Norms on Proportionate Deductions"
+  issued_on = "2020-06-11"
+  url = "https://irdai.gov.in/document-detail?documentId=394680"
+  retrieved_at = "2026-10-03"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-reg-cir-151-06-2020"
+  clause_id = "irdai-hlt-reg-cir-151-06-2020#6"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  fact = { fact_id = "claim.proportionate_deduction_applied", op = "eq", value = true }
+
+  [rule.condition]
+  fact = { fact_id = "hospital.follows_differential_billing", op = "eq", value = false }
+
+[[rule]]
+rule_id = "PD.ICU.BAR"
+version = 1
+title = "Proportionate deduction is not permitted on ICU charges"
+kind = "standardised"
+effect = "PROHIBIT_APPLICATION"
+citation = "para 7"
+quote = "Insurers are not permitted to apply proportionate deduction for 'ICU charges' as different categories of ICU are not there."
+effective_from = "2020-10-01"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "all proportionate deductions"
+verdict_effect = "Any ratio applied to ICU charges is a rule breach on verified facts."
+evidence_requirement = ["settlement_ratio_scope", "bill_head_amounts"]
+human_escalation = false
+tests = ["test_rules.py::test_pd_icu_bar_breach"]
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/REG/CIR/151/06/2020"
+  title = "Modified Guidelines on Product filing in Health Insurance Business - Norms on Proportionate Deductions"
+  issued_on = "2020-06-11"
+  url = "https://irdai.gov.in/document-detail?documentId=394680"
+  retrieved_at = "2026-10-03"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-reg-cir-151-06-2020"
+  clause_id = "irdai-hlt-reg-cir-151-06-2020#7"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  fact = { fact_id = "claim.proportionate_deduction_applied", op = "eq", value = true }
+
+  [rule.appliesto.barred_categories]
+  categories = ["icu"]
+
+[[rule]]
+rule_id = "PD.ERA.WORDING"
+version = 1
+title = "Compliance was achieved by modifying wordings without changing the UIN"
+kind = "standardised"
+effect = "INFORM_ONLY"
+citation = "para 9"
+quote = "Insurer shall modify the policy wordings of the existing health insurance products without any change in UIN to comply with these guidelines."
+effective_from = "2020-10-01"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "all health products"
+verdict_effect = "Informational. Drives the corpus rule that the SAME UIN can span two rule regimes, so applicability must key on the policy's own dates, never on the UIN alone."
+human_escalation = false
+notes = "The versioning axis for the whole rule engine comes from this paragraph. The quote was repaired on 2026-10-03: the paragraph it carried before was para 8 (the applicability dates), while its citation said para 9 - the corpus quote check caught the mismatch. The applicability dates of para 8 remain the rule's scope text."
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/REG/CIR/151/06/2020"
+  title = "Modified Guidelines on Product filing in Health Insurance Business - Norms on Proportionate Deductions"
+  issued_on = "2020-06-11"
+  url = "https://irdai.gov.in/document-detail?documentId=394680"
+  retrieved_at = "2026-10-03"
+
+# ---------------------------------------------------------------------------
+# Claims conduct — IRDAI/HLT/CIR/PRO/84/5/2024 (29 May 2024), verified verbatim
+# ---------------------------------------------------------------------------
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-reg-cir-151-06-2020"
+  clause_id = "irdai-hlt-reg-cir-151-06-2020#9"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+[[rule]]
+rule_id = "CL.PARTIAL.REASONS"
+version = 1
+title = "A partial disallowance must reference the specific policy terms"
+kind = "standardised"
+effect = "REQUIRE_COMMUNICATION"
+citation = "para 17(b)"
+quote = "In case, the claim is repudiated or disallowed partially, details shall be conveyed to the claimant along with full details giving reference to the specific terms and conditions of the policy document."
+effective_from = "2020-10-01"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "all health claims"
+verdict_effect = "A deduction stated without reference to the specific policy terms produces a PROCEDURAL finding with no rupee value attached."
+evidence_requirement = ["settlement_deduction_heads", "settlement_clause_references"]
+human_escalation = false
+tests = ["test_rules.py::test_partial_reasons_procedural"]
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/CIR/PRO/84/5/2024"
+  title = "Master Circular on IRDAI (Insurance Products) Regulations 2024 - Health Insurance"
+  issued_on = "2024-05-29"
+  url = "https://irdai.gov.in/documents/37343/365525/Master%20Circular%20on%20Health%20Insurance%20Business%2029052024.pdf"
+  retrieved_at = "2026-10-02"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-cir-pro-84-5-2024"
+  clause_id = "irdai-hlt-cir-pro-84-5-2024#I.17"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  fact = { fact_id = "claim.partially_disallowed", op = "eq", value = true }
+
+  [rule.condition]
+  fact = { fact_id = "settlement.cites_specific_policy_terms", op = "eq", value = false }
+
+[[rule]]
+rule_id = "CL.REPUDIATION.APPROVAL"
+version = 1
+title = "No repudiation without PMC or Claims Review Committee approval"
+kind = "standardised"
+effect = "REQUIRE_CONDITION"
+citation = "para 17(a)"
+quote = "No claim shall be repudiated without the approval of PMC or a three-member sub-group of PMC called the Claims Review Committee (CRC)."
+effective_from = "2024-05-29"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "all health claims"
+verdict_effect = "Usually unverifiable from the policyholder's documents; carried for completeness and for escalation text."
+evidence_requirement = ["insurer_internal_approval"]
+human_escalation = false
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/CIR/PRO/84/5/2024"
+  title = "Master Circular on IRDAI (Insurance Products) Regulations 2024 - Health Insurance"
+  issued_on = "2024-05-29"
+  retrieved_at = "2026-10-02"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-cir-pro-84-5-2024"
+  clause_id = "irdai-hlt-cir-pro-84-5-2024#I.17"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  fact = { fact_id = "claim.repudiated", op = "eq", value = true }
+
+
+[[rule]]
+rule_id = "CL.DOCS.COLLECT"
+version = 1
+title = "Insurers and TPAs collect the required documents from hospitals"
+kind = "standardised"
+effect = "REQUIRE_COMMUNICATION"
+citation = "para 17(c)"
+quote = "Pursuant to intimation of the claim, Insurers and Third Party Administrators (TPAs) shall collect the required documents from the Hospitals. Policyholder shall not be required to submit the documents."
+effective_from = "2024-05-29"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "all health claims"
+verdict_effect = "A settlement letter that demands from the policyholder documents the insurer should have collected produces a procedural finding."
+evidence_requirement = ["settlement_document_demands"]
+human_escalation = false
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/CIR/PRO/84/5/2024"
+  title = "Master Circular on IRDAI (Insurance Products) Regulations 2024 - Health Insurance"
+  issued_on = "2024-05-29"
+  retrieved_at = "2026-10-02"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-cir-pro-84-5-2024"
+  clause_id = "irdai-hlt-cir-pro-84-5-2024#I.17"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  fact = { fact_id = "claim.partially_disallowed", op = "eq", value = true }
+
+  [rule.condition]
+  fact = { fact_id = "settlement.demands_documents_from_policyholder", op = "eq", value = true }
+
+[[rule]]
+rule_id = "CL.TAT.NO_INVESTIGATION"
+version = 1
+title = "Settle or reject within 30 days of the last necessary document"
+kind = "standardised"
+effect = "REQUIRE_TIMELINESS"
+citation = "Annexure-1, clause 3(i)"
+quote = "The Company shall settle or reject a claim, as the case may be, within 30 days from the date of receipt of last necessary document."
+effective_from = "2024-05-29"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "health claims without investigation"
+verdict_effect = "Computes a deadline and compares it with the decision date when those dates are evidenced; otherwise an evidence gap naming the missing date."
+evidence_requirement = ["last_document_date", "decision_date"]
+human_escalation = false
+tests = ["test_rules.py::test_tat_evidence_gap"]
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/REG/CIR/152/06/2020"
+  title = "Guidelines on Standardization of General Terms and Clauses in Health Insurance Policy Contracts, Annexure-1 clause 3(i)"
+  issued_on = "2020-06-11"
+  url = "https://irdai.gov.in/document-detail?documentId=394691"
+  retrieved_at = "2026-10-03"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-reg-cir-152-06-2020"
+  clause_id = "irdai-hlt-reg-cir-152-06-2020#A1.3"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  fact = { fact_id = "claim.tat_bound_known", op = "eq", value = true }
+
+  [rule.condition]
+  fact = { fact_id = "claim.decision_within_30_days", op = "eq", value = false }
+
+
+[[rule]]
+rule_id = "CL.TAT.INVESTIGATION"
+version = 1
+title = "With investigation: complete within 30 days, settle or reject within 45"
+kind = "standardised"
+effect = "REQUIRE_TIMELINESS"
+citation = "Annexure-1, clause 3(iii)"
+quote = "However, where the circumstances of a claim warrant an investigation in the opinion of the Company, it shall initiate and complete such investigation at the earliest, in any case not later than 30 days from the date of receipt of last necessary document. In such cases, the Company shall settle or reject the claim within 45 days from the date of receipt of last necessary document."
+effective_from = "2020-10-01"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "health claims warranting investigation"
+verdict_effect = "Carried as the second bound alongside the 15-day statement in the POPI Master Circular (OV-2)."
+evidence_requirement = ["last_document_date", "decision_date"]
+human_escalation = false
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/REG/CIR/152/06/2020"
+  title = "Guidelines on Standardization of General Terms and Clauses in Health Insurance Policy Contracts, Annexure-1 clause 3(iii)"
+  issued_on = "2020-06-11"
+  url = "https://irdai.gov.in/document-detail?documentId=394691"
+  retrieved_at = "2026-10-03"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-reg-cir-152-06-2020"
+  clause_id = "irdai-hlt-reg-cir-152-06-2020#A1.3"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  fact = { fact_id = "claim.investigation_warranted", op = "eq", value = true }
+
+  [rule.condition]
+  fact = { fact_id = "claim.decision_within_45_days", op = "eq", value = false }
+
+
+[[rule]]
+rule_id = "CL.TAT.POPI.15D"
+version = 1
+title = "POPI Master Circular: non-cashless claims settled within fifteen days from submission"
+kind = "contested"
+effect = "REQUIRE_TIMELINESS"
+citation = "Section 2, claim settlement under health insurance policies, clause 5 and TAT table"
+quote = "Settlement of claims (other than cashless) shall be settled within fifteen days from submission of claim."
+effective_from = "2024-09-05"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "health claims, other than cashless"
+verdict_effect = "Cannot assert anything on its own: the trigger ('submission of claim') is not defined in the instrument and coexists with the 30/45-day frame keyed to the 'last necessary document'. Both bounds are presented with their instruments."
+evidence_requirement = ["claim_submission_date", "last_document_date", "decision_date"]
+human_escalation = false
+notes = "OV-2. Resolution path: read the POPI Master Circular Section 2 in full to establish whether the fifteen-day clock runs from first submission or from the receipt of all documents. Until then this is CONTESTED, not a rule."
+
+  [rule.applicability]
+  fact = { fact_id = "claim.tat_bound_known", op = "eq", value = true }
+
+  [rule.instrument]
+  ref = "IRDAI/PP&GR/CIR/MISC/117/9/2024"
+  title = "Master Circular on Protection of Policyholders' Interests, 2024"
+  issued_on = "2024-09-05"
+  url = "https://www.caalley.com/irdai_mc/MC_Protection_of_Policyholders_interests_2024.pdf"
+  retrieved_at = "2026-10-03"
+
+  [rule.source]
+  corpus_document_id = "irdai-pp-gr-cir-misc-117-9-2024"
+  clause_id = "irdai-pp-gr-cir-misc-117-9-2024#CL.HEALTH.TAT"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+[[rule]]
+rule_id = "CL.INTEREST"
+version = 2
+title = "Delay in payment attracts interest at 2% above the bank rate"
+kind = "standardised"
+effect = "ENTITLE_INTEREST"
+citation = "Annexure-1, clause 3(ii)"
+quote = "ii. In the case of delay in the payment of a claim, the Company shall be liable to pay interest to the policyholder from the date of receipt of last necessary document to the date of payment of claim at a rate 2% above the bank rate."
+effective_from = "2020-10-01"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "all claims settled beyond the timelines in the same clause"
+verdict_effect = "The one procedural rule that legitimately produces a rupee figure, computed by the deterministic engine from dated facts."
+evidence_requirement = ["intimation_date", "payment_date"]
+human_escalation = true
+notes = "Bank rate is the RBI rate fixed at the beginning of the financial year in which the claim fell due (the Explanation to this clause says so); the rate is a dated parameter, not a constant in code. Retargeted on 2026-10-03 from the 2024 POPI circular to this clause: the POPI text restates the entitlement (and adds that it is paid suo motu) but its own capture is not stored in the corpus, so it could not be quoted or verified - a rule may only assert on a clause that can be produced. The quote carries the clause marker because sub-clause 3(iv) repeats almost the same sentence for delays beyond 45 days; without the marker the sentence cannot be located uniquely, and the linker refuses an ambiguous quote rather than choosing between them."
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/REG/CIR/152/06/2020"
+  title = "Guidelines on Standardization of General Terms and Clauses in Health Insurance Policy Contracts"
+  issued_on = "2020-06-11"
+  retrieved_at = "2026-10-03"
+  url = "https://irdai.gov.in/document-detail?documentId=394691"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-reg-cir-152-06-2020"
+  clause_id = "irdai-hlt-reg-cir-152-06-2020#A1.3"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  fact = { fact_id = "claim.tat_bound_known", op = "eq", value = true }
+
+  [rule.condition]
+  fact = { fact_id = "claim.decision_within_30_days", op = "eq", value = false }
+
+[[rule]]
+rule_id = "CL.MORATORIUM.60M"
+version = 1
+title = "No contestability after 60 months of continuous coverage except established fraud"
+kind = "standardised"
+effect = "BAR_GROUND"
+citation = "para 13"
+quote = "No policy and claim of health insurance shall be contestable on any grounds of non-disclosure and/or misrepresentation except for established fraud, after the completion of the Moratorium Period, i.e. 60 months of continuous coverage"
+effective_from = "2024-05-29"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "all health policies"
+verdict_effect = "Bars a rejection ground when continuous coverage is evidenced; otherwise an evidence gap naming the coverage history."
+evidence_requirement = ["continuous_coverage_months"]
+human_escalation = true
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/CIR/PRO/84/5/2024"
+  title = "Master Circular on IRDAI (Insurance Products) Regulations 2024 - Health Insurance"
+  issued_on = "2024-05-29"
+  retrieved_at = "2026-10-02"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-cir-pro-84-5-2024"
+  clause_id = "irdai-hlt-cir-pro-84-5-2024#I.13"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  fact = { fact_id = "claim.repudiation_ground_non_disclosure", op = "eq", value = true }
+
+
+[[rule]]
+rule_id = "CL.CASHLESS.1H_DISCHARGE.3H"
+version = 1
+title = "Cashless authorisation within one hour; discharge authorisation within three hours"
+kind = "standardised"
+effect = "REQUIRE_TIMELINESS"
+citation = "paras 15-16"
+quote = "Insurer shall grant final authorization within three hours of the receipt of discharge authorization request from the hospital."
+effective_from = "2024-05-29"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "cashless claims"
+verdict_effect = "Requires request/authorisation timestamps that the policyholder's documents rarely contain; otherwise an evidence gap."
+evidence_requirement = ["cashless_request_time", "authorisation_time"]
+human_escalation = false
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/CIR/PRO/84/5/2024"
+  title = "Master Circular on IRDAI (Insurance Products) Regulations 2024 - Health Insurance"
+  issued_on = "2024-05-29"
+  retrieved_at = "2026-10-02"
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-cir-pro-84-5-2024"
+  clause_id = "irdai-hlt-cir-pro-84-5-2024#I.16"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+
+  [rule.applicability]
+  fact = { fact_id = "claim.is_cashless", op = "eq", value = true }
+
+
+[[rule]]
+rule_id = "CL.GRIEVANCE.OMBUDSMAN"
+version = 1
+title = "Grievance responses must carry the Ombudsman's contact details"
+kind = "standardised"
+effect = "REQUIRE_COMMUNICATION"
+citation = "para 19"
+quote = "The response letter of the Insurer in any grievance shall include the contact details of concerned insurance ombudsmen where his/her complaint can be escalated in case, the policyholder is not satisfied by the grievance redressal provided by the Insurer."
+effective_from = "2024-05-29"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "grievance responses"
+verdict_effect = "Procedural finding where a grievance response omits the Ombudsman's details."
+evidence_requirement = ["grievance_response_text"]
+human_escalation = false
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/CIR/PRO/84/5/2024"
+  title = "Master Circular on IRDAI (Insurance Products) Regulations 2024 - Health Insurance"
+  issued_on = "2024-05-29"
+  retrieved_at = "2026-10-02"
+
+# ---------------------------------------------------------------------------
+# The contested 2024 scope question (OV-3)
+# ---------------------------------------------------------------------------
+
+  [rule.source]
+  corpus_document_id = "irdai-hlt-cir-pro-84-5-2024"
+  clause_id = "irdai-hlt-cir-pro-84-5-2024#I.19"
+  corpus_snapshot_id = "SNAP-v0.1-D685D386F98A"
+  [rule.applicability]
+  fact = { fact_id = "claim.grievance_raised", op = "eq", value = true }
+
+
+[[rule]]
+rule_id = "PD.2024.SCOPE.CONTESTED"
+version = 1
+title = "Whether the 2024 regime confined proportionate deduction to the room-rent line"
+kind = "contested"
+effect = "INFORM_ONLY"
+citation = "not found in the primary text read (IRDAI/HLT/CIR/PRO/84/5/2024, 17 pp.)"
+quote = ""
+effective_from = "2024-05-29"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "proportionate deduction after 29 May 2024"
+verdict_effect = "Cannot assert anything. Forces the affected heads to be computed under each reading (policy AME scope vs room-rent-only scope) and returns UNDETERMINED when the readings differ materially."
+evidence_requirement = []
+human_escalation = false
+notes = """
+OV-3. Secondary sources state the 29 May 2024 Master Circular restricted the ratio to the room-rent line. The Master Circular, read in full (all four parts), contains no proportionate-deduction provision at all: its claim clauses are 17(a) repudiation approval, 17(b) reasons for partial disallowance and 17(c) document collection. Until a primary instrument supports the narrower scope, the system computes BOTH readings and refuses to pick.
+"""
+
+  [rule.applicability]
+  fact = { fact_id = "claim.proportionate_deduction_applied", op = "eq", value = true }
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/CIR/PRO/84/5/2024"
+  title = "Master Circular on IRDAI (Insurance Products) Regulations 2024 - Health Insurance"
+  issued_on = "2024-05-29"
+  retrieved_at = "2026-10-02"
+
+# ---------------------------------------------------------------------------
+# Standardised item lists (structure verified, current text not ingested: OV-5)
+# ---------------------------------------------------------------------------
+[[rule]]
+rule_id = "NP.LISTS.STRUCTURE"
+version = 1
+title = "Standardised lists: items are conditional, not a boolean list"
+kind = "standardised"
+effect = "REQUIRE_CONDITION"
+citation = "IRDAI/HLT/REG/CIR/193/07/2020, Annexure I Lists I-IV and Annexure A"
+quote = "The items listed are with the conditions stated against them; treatment of an item depends on the stated condition and on the policy's own terms."
+effective_from = "2020-07-22"
+verified_on = "2026-10-02"
+valid_for_days = 180
+status = "unverified"
+scope = "standardised health products"
+verdict_effect = "Item-level treatment is evaluated as a rule with conditions. Because the current list text has not been ingested (OV-5), list-derived item rules cannot carry a verdict; policy-document item rules can."
+evidence_requirement = ["policy_item_annexure"]
+human_escalation = false
+notes = "OV-5 open: the current text of the lists (as modified in 2022) has not been ingested. Until then the classifier may only use item rules sourced from the user's own policy document."
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/REG/CIR/193/07/2020"
+  title = "Master Circular on Standardization of Health Insurance Products"
+  issued_on = "2020-07-22"
+  url = "https://irdai.gov.in/document-detail?documentId=405009"
+  retrieved_at = "2026-10-02"
+
+# ---------------------------------------------------------------------------
+# Conduct rules that shape what an honest report may say
+# ---------------------------------------------------------------------------
+
+  [rule.applicability]
+  fact = { fact_id = "policy.non_payable_items_present", op = "eq", value = true }
+
+[[rule]]
+rule_id = "SCOPE.POLICY_VS_STATE"
+version = 1
+title = "Rules bind the insurer's conduct; the policy binds the contract"
+kind = "standardised"
+effect = "INFORM_ONLY"
+citation = "design rule derived from para 5 of 151/06/2020 ('shall not recover')"
+quote = "Insurers shall not recover any expenses towards proportionate deductions other than the defined 'associate medical expenses' while processing claims."
+effective_from = "2020-10-01"
+verified_on = "2026-10-03"
+valid_for_days = 180
+scope = "internal"
+verdict_effect = "Allows the verdict engine to state 'the wording appears to allow this, and the regulation forbids it' as a rule breach distinct from a policy-binding finding."
+human_escalation = false
+
+  [rule.instrument]
+  ref = "IRDAI/HLT/REG/CIR/151/06/2020"
+  title = "Modified Guidelines on Product filing in Health Insurance Business - Norms on Proportionate Deductions"
+  issued_on = "2020-06-11"
+  url = "https://irdai.gov.in/document-detail?documentId=394680"
+  retrieved_at = "2026-10-03"

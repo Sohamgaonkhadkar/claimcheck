@@ -1,0 +1,21 @@
+# Local development only. Do not expose this database or reuse these credentials externally.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-claimcheck}
+      POSTGRES_USER: ${POSTGRES_USER:-claimcheck_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-claimcheck_dev_only}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - claimcheck-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-claimcheck_dev} -d ${POSTGRES_DB:-claimcheck}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  claimcheck-postgres-data:

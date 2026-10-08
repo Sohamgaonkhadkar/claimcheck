@@ -1,0 +1,58 @@
+[project]
+name = "claimcheck"
+version = "0.3.0a1"
+description = "CLAIMCHECK - evidence-first health-insurance settlement review service"
+requires-python = ">=3.11"
+# Base dependencies are limited to the production API, PostgreSQL persistence, and PDF/OCR path.
+# Parquet/compressed research-data readers live in the dev extra. The optional model-a extra remains
+# separate and is not installed by the API or worker images.
+dependencies = [
+    "fastapi>=0.115,<1.0",  # thin HTTP adapter for the application boundary
+    "pydantic>=2.8,<3",     # typed API DTOs; domain dataclasses remain framework-independent
+    "uvicorn>=0.30,<1.0",  # ASGI server command used to run the API
+    "SQLAlchemy>=2.0,<3",   # PostgreSQL product-state mappings and owner-scoped repositories
+    "alembic>=1.13,<2",     # versioned PostgreSQL schema migrations
+    "psycopg[binary]>=3.2,<4",  # PostgreSQL 3 driver for the API and migrations
+    "python-multipart>=0.0.9,<1",  # bounded multipart PDF intake through Starlette
+    "pypdfium2>=4.30",      # PDF page text layer + page rendering (ingest/pdf.py, bench/gold/*)
+    "pillow>=10.0",         # required by pypdfium2's .to_pil(), used by the page renderer
+    "pypdf>=4.0",           # second reader: dual-reader cross-check for load-bearing facts
+    "pytesseract>=0.3.10",  # OCR of pages with no text layer (needs the tesseract binary, see below)
+]
+
+[project.scripts]
+claimcheck-worker = "claimcheck.worker.main:main"
+
+# The tesseract-ocr binary is a system package, not a Python one:
+#   Debian/Ubuntu:  sudo apt-get install -y tesseract-ocr
+#   macOS:          brew install tesseract
+# Without it, pytesseract raises and every page with no text layer reads as empty — the OCR
+# baseline and the OCR gold set depend on it being on PATH. `python3 -m bench.gold.readiness`
+# checks for it.
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",          # FastAPI TestClient transport for API boundary tests
+    "starlette>=0.37.2",    # direct test import for the request-scope fixture
+    "pyarrow>=15.0",        # optional repository research/data tests read Parquet fixtures
+    "zstandard>=0.22",      # optional repository research/data tests read JSONL.zst fixtures
+]
+model-a = [
+    "scikit-learn==1.6.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
