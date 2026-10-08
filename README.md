@@ -1,91 +1,81 @@
-<div align="center">
+# CLAIMCHECK
 
-# 🔎 CLAIMCHECK
+An evidence-first health-insurance settlement review service.
 
-**An evidence-first health-insurance settlement review service.**
-
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org)
-
-*CLAIMCHECK organizes policy wording, a policy schedule, a hospital bill, and a settlement/rejection letter into a reviewed, provenance-aware reconstruction—so people can see what is supported, what is uncertain, and what to ask next.*
+CLAIMCHECK organizes a policy wording, policy schedule, hospital bill, and settlement letter into a reviewed, provenance-aware reconstruction. It prevents unverified extraction output from directly controlling deterministic financial analysis.
 
 ---
 
+## 1. What CLAIMCHECK Solves
 
-## 1. The Problem: The Quiet Majority of Lost Money
+When an Indian policyholder is discharged from a hospital, the final amount paid by the insurer often differs from the hospital bill. The settlement letter typically lists deductions but rarely explains the exact arithmetic or the specific policy clauses invoked to justify them.
 
-When an Indian policyholder is discharged from the hospital, they receive a settlement or rejection letter. The amount paid is frequently below expectation, but the letter rarely explains the exact arithmetic or policy clause used to justify deductions.
+To audit a payout, a user must connect a deduction to:
+- a specific bill line
+- a specific policy clause
+- a limit in the schedule
+- an insurer-paid amount
 
-> **₹15,100 Crore Disallowed (12.9%)**  
-> In FY 2023-24, out of ₹1.17 lakh crore registered health claims, the largest bucket of lost money wasn't outright rejection—it was claims that were approved but silently cut down.
+While free escalation machinery exists, it is built for policyholders who already know exactly what to allege and can prove it with figures and clauses. Most policyholders lack the specific diagnosis needed to challenge a deduction.
 
-While free escalation machinery exists (Grievance Officers, Bima Bharosa, the Insurance Ombudsman), it is built for people who already know exactly what to allege and can prove it with figures and clauses. Most policyholders lack the diagnosis needed to challenge a deduction.
+CLAIMCHECK reconstructs the settlement mathematically. It is **not** a document summarizer, a chatbot, an autonomous agent, or a legal complaint generator. It is a structured, evidence-backed settlement reconstruction and review system.
 
 ---
 
-## 2. The Core Idea: Reconstructing the Claim
+## 2. Core Design Principle: Extraction is Not Truth
 
-A large part of an Indian health-insurance deduction is not a black box. It is a stack of named, individually rule-governed arithmetic steps applied to an itemised bill (e.g., non-payable items removal, room-rent sub-limits, proportionate deductions, and co-pays). Each step has a source that can be pointed at.
+The fundamental architectural principle of CLAIMCHECK is that **extraction is not truth.** 
 
-### **EXTRACTION ≠ TRUTH**
+A parser or Language Model may *propose* a monetary amount, a policy limit, a deduction, or a boolean condition. However, a candidate value does not become authoritative simply because a parser found it. 
 
-A parser or Language Model may propose a monetary amount, a policy limit, a deduction, or a boolean condition. But a candidate does not become authoritative simply because a parser found it. CLAIMCHECK explicitly separates candidate extraction from deterministic analysis.
+CLAIMCHECK strictly separates extraction from analysis:
 
 ```mermaid
-graph TD
-    A[Customer PDFs] --> B(Text Extraction + Candidates)
-    B --> C{Human Verification}
-    C -->|Append-Only Corrections| D[Trusted Structured Case]
-    D --> E[Deterministic Reconstruction]
-    E --> F[Findings + Uncertainty + Next Questions]
+flowchart TD
+    A[Document Reading] --> B[Candidate Values]
+    B --> C[Evidence / Provenance]
+    C --> D[Review / Trust Gating]
+    D --> E[Trusted Structured Case]
+    E --> F[Deterministic Analysis]
+    F --> G[Reconciliation]
+    G --> H[Findings / Next Questions]
 ```
 
----
+**Models/Parsers**: READ / LOCATE / NORMALIZE / PROPOSE
+**Deterministic Application Logic**: DECIDE / CALCULATE / RECONCILE / ASSIGN VERDICT
 
-## 3. Product Workflow & Trust Gating
-
-1. **Upload**: Users upload the Policy Wording, Policy Schedule, Hospital Bill, and Settlement Letter.
-2. **Background Processing**: PDF extraction runs asynchronously in a durable worker queue. Extracted values are strictly linked to the original document, the page, the exact source text/span, and the extraction method.
-3. **Evidence-First Human Review**: The user enters the Evidence UI: **Candidate → Evidence → Human decision**. The user must explicitly act on each extracted candidate (*Confirm, Correct, or Can't Verify*).
-4. **Readiness / Trust Gate**: Analysis cannot simply run because candidate fields exist. The `TrustedCaseAdapter` checks whether all required inputs are present, properly typed, explicitly verified by a human, and supported by trusted provenance.
-5. **Deterministic Reconstruction**: Once a case is trusted, **deterministic application code** owns the entire calculation pipeline (financial arithmetic, limits, deductions, reconciliation, and verdict semantics).
+This separation ensures that a language model cannot invent financial values, ignore a deductible, or silently change arithmetic to reach a pleasing answer.
 
 ---
 
-## 4. Why Deterministic Calculation?
+## 3. End-to-End Workflow
 
-LLMs and parsers can assist with locating and proposing information, but financial settlement arithmetic must be reproducible, inspectable, deterministic, testable, and auditable.
-
-* **Models/parsers**: READ / LOCATE / NORMALIZE / PROPOSE
-* **Deterministic application logic**: DECIDE / CALCULATE / RECONCILE / ASSIGN VERDICT
-
-This architectural boundary prevents a language model from inventing financial values, ignoring a deductible, or silently changing arithmetic to reach a pleasing answer.
-
-### Exact Monetary Arithmetic (Integer Paise)
-CLAIMCHECK represents all monetary values internally as integer paise.
-- **₹5,00,000** → `50,000,000 paise`
-- **1% room-rent limit (₹5,000)** → `500,000 paise`
-- **Settlement amount (₹86,638.50)** → `8,663,850 paise`
-
-This guarantees exact monetary representation inside the application, prevents binary floating-point ambiguity, allows exact reconciliation, and accurately preserves edge cases like `.50` paise. 
-
----
-
-## 5. Result States
-
-CLAIMCHECK yields one of three core interpretation states for any deduction:
-
-| State | Meaning |
-|:---|:---|
-| **SUPPORTED** | Evidence and deterministic rules mathematically support the deduction. *(Note: This does not mean "legally proven correct"; it means the math aligns structurally with the text).* |
-| **POTENTIALLY INCONSISTENT** | The available evidence and deterministic calculation indicate a discrepancy or structural inconsistency that deserves attention. *(Note: This does not automatically mean illegal or fraudulent).* |
-| **UNDETERMINED** | The available documents/evidence are insufficient to reach a deterministic conclusion (e.g. unpublished "Reasonable and Customary" rates). |
+1. **Case creation**: A Case is created to securely scope a single hospital admission.
+2. **PDF upload and validation**: Users upload the Policy Wording, Policy Schedule, Hospital Bill, and Settlement Letter.
+3. **Private persistence**: Documents are uniquely hashed (SHA-256) and saved safely.
+4. **Durable document-processing job**: Dispatched asynchronously to prevent blocking the API.
+5. **PDF extraction**: The worker parses pages and extracts candidate fields.
+6. **Document-role handling**: Validates that uploaded documents match expected required roles.
+7. **Evidence span creation**: Candidates are explicitly linked to spatial coordinates in the source PDF.
+8. **Candidate field creation**: Values are staged but untrusted.
+9. **Automatic verification**: Deterministic evidence is accepted automatically if fully unambiguous.
+10. **Exception-based human review**: Human intervention is required when evidence is ambiguous, parsing fails, or critical values lack trusted provenance.
+11. **Append-only corrections**: Human review decisions are appended, preserving raw extraction history.
+12. **Input revision**: A snapshot of trusted inputs is created for analysis.
+13. **Readiness evaluation**: The system checks if all required inputs are present.
+14. **TrustedCaseAdapter**: Converts persisted, reviewed state into a domain-level `StructuredCase`.
+15. **Analysis run**: The deterministic calculator executes.
+16. **Deterministic calculation graph**: Executes the financial logic.
+17. **Reconciliation**: Compares reconstructed calculations with the insurer's stated payment.
+18. **Persisted AnalysisRun**: The results are durably saved.
+19. **Results API**: Frontend fetches the output.
+20. **Evidence-first frontend presentation**: Results are shown strictly linked to their PDF evidence.
 
 ---
 
-## 6. System Architecture
+## 4. Architecture
+
+CLAIMCHECK is built as a modular monolith designed for rigorous domain boundaries.
 
 ```mermaid
 flowchart TD
@@ -130,35 +120,223 @@ flowchart TD
 
 ---
 
-## 7. Evidence & Provenance Model
+## 5. Document Processing
 
-Provenance is the backbone of CLAIMCHECK.
+PDF processing is handled strictly to guarantee artifact integrity:
+- **PDF Validation**: Checks file extensions, structure signatures, and size limits.
+- **Identity**: SHA-256 hashing ensures documents are deduplicated and tracked.
+- **Private Persistence**: Files are written to an internal storage path, never exposed to the public web root.
 
-> `Document` → `Processing run` → `Page` → `Evidence span` → `Candidate field` → `Review decision` → `Trusted field` → `Analysis run` → `Calculation step`
-
-This strict chain prevents unsupported values from entering the deterministic calculator. Every `Trusted field` must be explicitly scoped to a verified `Evidence span`. The original PDF is retained as the immutable source artifact, ensuring the review always remains linked to the original evidence.
+Processing jobs are managed via durable state transitions:
+`UPLOADED` → `PROCESSING` → `READY` / `NEEDS_REVIEW` / `EVIDENCE_GAP` / `FAILED`
 
 ---
 
-## 8. Deployment (AWS Target)
+## 6. Evidence & Provenance
 
-**AWS Competition Deployment Target:**
-- **Region**: `ap-south-1` (Mumbai)
+The provenance chain ensures that the system can always answer: *"Where did this number come from?"*
+
+```mermaid
+flowchart LR
+    A[Document] --> B[Page]
+    B --> C[Evidence Span]
+    C --> D[Extracted Field]
+    D --> E[Review]
+    E --> F[Trusted Input]
+    F --> G[Revision]
+    G --> H[Analysis Run]
+    H --> I[Calculation Step]
+```
+
+A monetary value cannot reach the deterministic calculator merely because a parser produced it. It must trace back through a verified Evidence Span directly to the source PDF. 
+
+---
+
+## 7. Review & Trust Gating
+
+Candidate extraction is distinct from a **trusted input**.
+
+The **TrustedCaseAdapter** acts as the boundary that converts persisted, reviewed application state into the domain-level `StructuredCase` expected by the deterministic analysis engine. The calculator never consumes arbitrary database rows or raw extraction output.
+
+The gate checks:
+- Are all required fields present?
+- Are they properly typed?
+- Do they have the required provenance?
+- Have ambiguous fields been explicitly reviewed by a human?
+
+---
+
+## 8. Input Revisions + Analysis Pinning
+
+An analysis is tied to a specific trusted input revision. 
+
+If a user changes or corrects a value after an analysis:
+- The input revision changes.
+- The previous analysis is **not** silently reused as if it represented the new input.
+- The next analysis works against the new revision.
+
+This ensures strict reproducibility and auditability.
+
+---
+
+## 9. Deterministic Analysis Engine
+
+The core calculator transforms the `StructuredCase` into an explicit calculation graph:
+
+**Graph → Rules → Calculation → Reconciliation → Verdict**
+
+The engine evaluates:
+- Hospital bill line items
+- Non-payable deductions
+- Policy-specific limits (e.g., Room Rent constraints)
+- Eligible/admissible amounts
+- Co-pays
+- Reconstructed payable amounts
+
+*Note: The engine only executes implemented rules. It does not hallucinate general insurance concepts if they are not strictly codified in the rule engine.*
+
+---
+
+## 10. Money Model — Integer Paise
+
+All financial arithmetic uses **integer paise**.
+
+Example:
+- ₹5,00,000 = `50,000,000 paise`
+- 1% of ₹5,00,000 (₹5,000) = `500,000 paise`
+- ₹86,638.50 = `8,663,850 paise`
+
+This design:
+- Avoids binary floating-point ambiguity.
+- Allows exact equality and reconciliation.
+- Preserves exact `.50` values.
+- Makes financial calculations strictly deterministic.
+
+---
+
+## 11. Reconciliation & Verdict Semantics
+
+Reconciliation compares the deterministic reconstructed payable amount against the documented amount paid by the insurer. A difference is not automatically evidence of insurer wrongdoing.
+
+| State | Meaning |
+|:---|:---|
+| **SUPPORTED** | Evidence and deterministic rules mathematically support the deduction. *(Note: This does not mean "legally proven correct"; it means the math aligns structurally with the uploaded text).* |
+| **POTENTIALLY INCONSISTENT** | The available evidence and deterministic calculation indicate a discrepancy or structural inconsistency. *(Note: This does not automatically mean illegal or fraudulent).* |
+| **UNDETERMINED** | The available documents/evidence are insufficient to reach a deterministic conclusion (e.g., unpublished "Reasonable and Customary" rates). |
+
+---
+
+## 12. Data & Persistence Model
+
+PostgreSQL maintains durable product state, provenance metadata, review states, and job execution logs. 
+
+Key Entities:
+- **Case**: The security boundary for a user's claim event.
+- **Document**: The raw PDF metadata and hash identity.
+- **ProcessingJob / Run**: Async work trackers.
+- **EvidenceSpan**: The coordinates and raw text of parser candidates.
+- **ReviewCorrection**: Append-only log of human decisions.
+- **InputRevision**: Snapshot of trusted inputs for a specific execution.
+- **AnalysisRun**: The deterministic execution log.
+
+Original PDFs are stored safely in private local storage, entirely separate from the web root.
+
+---
+
+## 13. Frontend / Evidence UI
+
+The React frontend is an **Evidence UI**, not a dashboard or a chatbot.
+
+**Flow:** `Landing` → `Upload` → `Processing` → `Review` → `Results` → `Evidence` → `Next steps`
+
+It allows users to inspect sources, confirm/correct candidates, and view results strictly linked back to their source pages. The frontend performs no client-side financial calculations.
+
+---
+
+## 14. Background Jobs
+
+PDF extraction is computationally heavy and unpredictable. To prevent blocking synchronous API requests, work is dispatched to `claimcheck-worker`. The worker claims durable PostgreSQL jobs, manages leasing and retries, and executes page parsing and extraction asynchronously.
+
+---
+
+## 15. Security & Privacy
+
+- **Owner-Scoped Access**: Cases and documents belong strictly to the owner.
+- **Private Storage**: Uploaded PDFs are never exposed to the public internet.
+- **Internal APIs**: The FastAPI backend and PostgreSQL database are completely internal, accessible only behind the Nginx reverse proxy.
+- **Safe APIs**: Tracebacks and document contents are never leaked in API error responses.
+
+*(Note: CLAIMCHECK does not claim HIPAA, SOC2, or ISO certification).*
+
+---
+
+## 16. Validation & Testing
+
+The repository contains 423 tests covering:
+- PDF validation and document lifecycle.
+- Provenance and owner isolation.
+- Trust gating and input revisions.
+- Deterministic calculator and integer paise preservation.
+- API vertical slices.
+
+### Validated E2E Example
+The system successfully processed a complete 4-PDF flow with the following parameters:
+- **Hospital bill**: ₹97,015.00
+- **Policy**: ₹5,00,000 sum insured
+- **Room rent**: 1% of sum insured (→ ₹5,000/day)
+- **Settlement**: ₹86,638.50
+
+CLAIMCHECK read the documents, extracted candidates tied to evidence, resolved required reviews, created a trusted structured case, ran deterministic calculation, and reconciled the documented payment exactly, preserving the `.50` paise perfectly.
+
+---
+
+## 17. Research / ML Experiments
+
+CLAIMCHECK's production financial verdict **does not** depend on an ML model predicting the final amount.
+
+While the repository may contain isolated research ML experiments (e.g., Model A Challenger) evaluated on controlled synthetic data, these are **not** connected to the production worker and do not influence authoritative financial verdicts. They are not evidence of real-world claim-settlement accuracy.
+
+---
+
+## 18. Deployment
+
+**Competition Target Architecture:**
+- **Region**: `ap-south-1`
 - **Host**: Single EC2 Instance (`t3.small`)
 - **OS**: Amazon Linux 2023
 - **Services**: Nginx, FastAPI, Python Worker, PostgreSQL (Native)
-- **Frontend**: Vite production build served through Nginx
 - **Storage**: `/var/lib/claimcheck/private-storage`
 
 **Request Path:**
-`Browser` → `Nginx` (Serves React assets / Reverse Proxies API) → `FastAPI` ↔ `PostgreSQL` / `Private Storage` / `Worker`
+`Browser` → `Nginx` (Serves React assets / Reverse Proxies `/api`) → `FastAPI` ↔ `PostgreSQL` / `Private Storage` / `Worker`
 
 ---
 
-## 9. Local Development
+## 19. Repository Structure
+
+```
+claimcheck/
+├── src/claimcheck/          
+│   ├── api/                 # FastAPI routes, schemas, and dependencies
+│   ├── application/         # Core workflows, trust gating, TrustedCaseAdapter
+│   ├── calc/                # Deterministic financial arithmetic (integer paise)
+│   ├── evidence/            # Provenance and span modeling
+│   ├── persistence/         # SQLAlchemy models and local storage
+│   ├── rules/               # Indian health policy evaluation logic
+│   ├── verdict/             # Finding and state-machine generation
+│   └── worker/              # Durable background processing loop
+├── web/                     # React/Vite Frontend
+├── migrations/              # Alembic schemas
+├── scripts/                 # Setup and deployment scripts
+└── tests/                   # 423 Pytest test cases
+```
+
+---
+
+## 20. Local Development
 
 1. **Environment**: Copy `.env.example` to `.env`.
-2. **Database**: Run PostgreSQL locally.
+2. **Database**: Start a local PostgreSQL instance.
 3. **Migrations**: `alembic upgrade head`
 4. **API**: `python -m uvicorn claimcheck.api.app:app --port 8000 --reload`
 5. **Worker**: `claimcheck-worker`
@@ -166,29 +344,35 @@ This strict chain prevents unsupported values from entering the deterministic ca
 
 ---
 
-## 10. Testing & Validation
+## 21. API / Operational Flow
 
-The repository contains **423 tests** encompassing deterministic rules, integer paise preservation, provenance tracking, trust-gate enforcement, and API vertical slices.
-
-### End-to-End Validation
-The system successfully completed a full 4-PDF E2E scenario targeting Indian health policies:
-- **Sum insured**: ₹5,00,000
-- **Room rent rule**: 1% of sum insured
-- **Normalized room rent limit**: ₹5,000/day
-- **Settlement final payable**: ₹86,638.50
-
-In this validation, 4 PDFs were ingested, extracted, manually reviewed, seamlessly reconstructed deterministically, and accurately reconciled to exactly `.50` paise without truncation.
+The API design strictly enforces the product boundaries:
+- `POST /api/v1/cases`: Intake boundary.
+- `POST /api/v1/cases/{id}/documents`: Document processing boundary.
+- `GET /api/v1/cases/{id}/review-queue`: Review/readiness boundary.
+- `POST /api/v1/cases/{id}/analyze`: Deterministic analysis boundary.
+- `GET /api/v1/cases/{id}/analysis`: Result retrieval boundary.
 
 ---
 
-## 11. Limitations & Non-Goals
+## 22. Limitations & Non-Goals
 
-- CLAIMCHECK is **not** legal advice and does not declare insurer liability.
-- It does **not** replace insurer adjudication or guarantee recovery of money.
-- It does **not** treat Language Model extraction as authoritative financial truth.
-- It requires explicit human verification before running analysis.
-- The repository supports isolated research ML experiments on synthetic data, but these are **not** connected to the production worker's final financial verdicts.
+- CLAIMCHECK is **not** legal advice.
+- It does **not** replace insurer adjudication or guarantee claim recovery.
+- Ambiguous policy language (e.g., "Reasonable and Customary") can remain `UNDETERMINED`.
+- Extracted candidates are not authoritative without trust gating.
+- Production financial results are deterministic but only as good as the verified inputs and the implemented rules.
 
-<div align="center">
-<i>Built for the questions that matter when a claim doesn't add up.</i>
-</div>
+---
+
+## 23. Why This Approach?
+
+CLAIMCHECK is technically interesting because it abandons the "AI summarizes documents" paradigm in favor of rigid engineering controls:
+
+1. **Extraction separated from truth**: Prevents hallucination.
+2. **Evidence-first data model**: Complete traceability from Document → Trusted Input → Calculation Step.
+3. **Exception-based human review**: Automates the obvious, forces review on the ambiguous.
+4. **TrustedCase boundary**: Malformed cases mathematically cannot execute.
+5. **Input revision pinning**: Analyses are permanently tied to immutable input snapshots.
+6. **Deterministic integer-paise engine**: Exact financial math without floating-point errors.
+7. **Safe uncertainty**: Explicitly represents `UNDETERMINED` states rather than forcing a hallucinated answer.
