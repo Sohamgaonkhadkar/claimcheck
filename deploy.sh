@@ -9,7 +9,7 @@ sudo dnf install git postgresql15-server nginx python3.11 python3.11-pip nodejs 
 cd ~
 rm -rf claimcheck-prod
 git clone https://github.com/Sohamgaonkhadkar/claimcheck.git claimcheck-prod
-cd claimcheck-prod/claimcheck
+cd claimcheck-prod
 
 # 2. Start Database
 sudo postgresql-setup --initdb || true
@@ -36,7 +36,7 @@ Description=Claimcheck API
 After=network.target postgresql.service
 [Service]
 User=ec2-user
-WorkingDirectory=/home/ec2-user/claimcheck-prod/claimcheck
+WorkingDirectory=/home/ec2-user/claimcheck-prod
 Environment="DATABASE_URL=postgresql://claimcheck_dev:claimcheck_dev_only@127.0.0.1:5432/claimcheck"
 Environment="CLAIMCHECK_ENV=development"
 ExecStart=/home/ec2-user/.local/bin/uvicorn claimcheck.api.app:app --host 127.0.0.1 --port 8000
@@ -51,7 +51,7 @@ Description=Claimcheck Worker
 After=network.target postgresql.service
 [Service]
 User=ec2-user
-WorkingDirectory=/home/ec2-user/claimcheck-prod/claimcheck
+WorkingDirectory=/home/ec2-user/claimcheck-prod
 Environment="DATABASE_URL=postgresql://claimcheck_dev:claimcheck_dev_only@127.0.0.1:5432/claimcheck"
 Environment="CLAIMCHECK_ENV=development"
 ExecStart=/home/ec2-user/.local/bin/claimcheck-worker
@@ -68,7 +68,7 @@ sudo systemctl enable claimcheck-api claimcheck-worker
 sudo systemctl restart claimcheck-api claimcheck-worker
 
 # 5. Build UI & Configure Nginx
-cd ~/claimcheck-prod/claimcheck/web
+cd ~/claimcheck-prod/web
 npm install
 npm run build
 
@@ -76,7 +76,7 @@ sudo bash -c 'cat > /etc/nginx/conf.d/claimcheck.conf << "EOF"
 server {
     listen 80;
     server_name _;
-    root /home/ec2-user/claimcheck-prod/claimcheck/web/dist;
+    root /home/ec2-user/claimcheck-prod/web/dist;
     index index.html;
 
     location / {
@@ -96,8 +96,7 @@ EOF'
 # Give Nginx permission to read the files
 chmod +x /home/ec2-user
 chmod +x /home/ec2-user/claimcheck-prod
-chmod +x /home/ec2-user/claimcheck-prod/claimcheck
-chmod +x /home/ec2-user/claimcheck-prod/claimcheck/web
+chmod +x /home/ec2-user/claimcheck-prod/web
 
 sudo rm -f /etc/nginx/nginx.conf.default
 sudo sed -i '/server {/,/}/d' /etc/nginx/nginx.conf
