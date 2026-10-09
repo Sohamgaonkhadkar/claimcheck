@@ -99,9 +99,28 @@ chmod +x /home/ec2-user
 chmod +x /home/ec2-user/claimcheck-prod
 chmod +x /home/ec2-user/claimcheck-prod/web
 
-sudo rm -f /etc/nginx/nginx.conf.default
-sudo sed -i '/server {/,/}/d' /etc/nginx/nginx.conf
+sudo tee /etc/nginx/nginx.conf > /dev/null << "EOF"
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log notice;
+pid /run/nginx.pid;
 
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log  /var/log/nginx/access.log  main;
+    sendfile        on;
+    keepalive_timeout  65;
+    include /etc/nginx/conf.d/*.conf;
+}
+EOF
 sudo systemctl enable nginx
 sudo systemctl restart nginx
 
