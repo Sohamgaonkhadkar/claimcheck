@@ -1,6 +1,6 @@
 # CLAIMCHECK
 
-**🚀 Live Application:** [http://65.2.161.137](http://65.2.161.137)
+**Live Application:** [http://65.2.161.137](http://65.2.161.137)
 
 An evidence-first health-insurance settlement review service.
 
