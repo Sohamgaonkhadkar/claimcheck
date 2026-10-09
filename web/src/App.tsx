@@ -1196,11 +1196,7 @@ function Landing({
               {loadingAction === 'start' ? 'Starting your review…' : 'Review my claim'}
               {loadingAction === 'start' ? <span className="mini-spinner" /> : <Icon name="arrowRight" />}
             </button>
-            <button className="button button-secondary button-large" type="button" onClick={onExample} disabled={loading}>
-              {loadingAction === 'example' ? <span className="mini-spinner" /> : null}
-              {loadingAction === 'example' ? 'Opening example…' : 'View example claim'}
-              {loadingAction !== 'example' && <Icon name="arrowUpRight" />}
-            </button>
+
             {hasResume && <button className="button button-quiet" type="button" onClick={onResume} disabled={loading}>{loadingAction === 'resume' ? 'Opening your review…' : 'Continue your review'} {loadingAction === 'resume' ? <span className="mini-spinner" /> : <Icon name="arrowRight" />}</button>}
             <span className="hero-small-note"><Icon name="spark" /> Clear answers, grounded in your documents</span>
           </div>
