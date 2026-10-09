@@ -13,8 +13,9 @@ cd claimcheck-prod
 
 # 2. Start Database
 sudo postgresql-setup --initdb || true
+sudo sed -i 's/ident/scram-sha-256/g' /var/lib/pgsql/data/pg_hba.conf
 sudo systemctl enable postgresql
-sudo systemctl start postgresql
+sudo systemctl restart postgresql
 
 sudo -u postgres psql -c "CREATE DATABASE claimcheck;" || true
 sudo -u postgres psql -c "CREATE USER claimcheck_dev WITH PASSWORD 'claimcheck_dev_only';" || true
